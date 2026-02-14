@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiUser, FiMail, FiLock, FiHeart, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiHeart, FiEye, FiEyeOff, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { authAPI } from '../services/api';
@@ -10,32 +10,83 @@ export default function SignUpPage() {
   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const isDark = theme === 'dark';
 
-  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  const update = (field) => (e) => {
+    const val = e.target.value;
+    setForm({ ...form, [field]: val });
+    // Clear field error on edit
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+    if (error) setError('');
+  };
+
+  // Real-time field validation
+  const validateField = (field) => {
+    const errs = { ...fieldErrors };
+    switch (field) {
+      case 'username':
+        if (form.username && form.username.length < 3) errs.username = 'Username must be at least 3 characters';
+        else if (form.username && !/^[a-zA-Z0-9_]+$/.test(form.username)) errs.username = 'Username can only contain letters, numbers, and underscores';
+        else errs.username = '';
+        break;
+      case 'email':
+        if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Please enter a valid email address';
+        else errs.email = '';
+        break;
+      case 'password':
+        if (form.password && form.password.length < 6) errs.password = 'Password must be at least 6 characters';
+        else errs.password = '';
+        // Also recheck confirm if it's filled
+        if (form.confirmPassword && form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+        else if (form.confirmPassword) errs.confirmPassword = '';
+        break;
+      case 'confirmPassword':
+        if (form.confirmPassword && form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+        else errs.confirmPassword = '';
+        break;
+    }
+    setFieldErrors(errs);
+  };
+
+  const isFieldValid = (field) => {
+    if (!form[field]) return null; // untouched
+    if (fieldErrors[field]) return false;
+    switch (field) {
+      case 'username': return form.username.length >= 3;
+      case 'email': return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+      case 'password': return form.password.length >= 6;
+      case 'confirmPassword': return form.confirmPassword && form.password === form.confirmPassword;
+      default: return null;
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!form.username || !form.email || !form.password) {
-      setError('Please fill in all fields');
-      return;
-    }
-    if (form.username.length < 3) {
-      setError('Username must be at least 3 characters');
-      return;
-    }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match');
+    // Full validation before submit
+    const errors = {};
+    if (!form.username) errors.username = 'Username is required';
+    else if (form.username.length < 3) errors.username = 'Username must be at least 3 characters';
+
+    if (!form.email) errors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Please enter a valid email address';
+
+    if (!form.password) errors.password = 'Password is required';
+    else if (form.password.length < 6) errors.password = 'Password must be at least 6 characters';
+
+    if (!form.confirmPassword) errors.confirmPassword = 'Please confirm your password';
+    else if (form.password !== form.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+
+    if (Object.values(errors).some(Boolean)) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -49,19 +100,56 @@ export default function SignUpPage() {
       login(res.data.access_token, res.data.user);
       navigate('/dashboard');
     } catch (err) {
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        // Map backend errors to specific fields when possible
+        const detailLower = typeof detail === 'string' ? detail.toLowerCase() : '';
+        if (detailLower.includes('email already')) {
+          setFieldErrors((prev) => ({ ...prev, email: 'This email is already registered. Try logging in instead.' }));
+        } else if (detailLower.includes('username already')) {
+          setFieldErrors((prev) => ({ ...prev, username: 'This username is already taken. Please choose another.' }));
+        } else if (typeof detail === 'string') {
+          setError(detail);
+        } else if (Array.isArray(detail)) {
+          // Pydantic validation array format (fallback)
+          const msgs = detail.map((d) => d.msg || 'Validation error');
+          setError(msgs.join('. '));
+        } else {
+          setError('Registration failed. Please check your details and try again.');
+        }
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
         setError('Cannot connect to the server. Please make sure the backend is running.');
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Registration failed. Please check your details and try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const inputClass = "w-full pl-11 pr-4 py-3 rounded-xl text-sm transition-all";
+  const inputClass = (field) => {
+    const base = "w-full pl-11 pr-4 py-3 rounded-xl text-sm transition-all";
+    const valid = isFieldValid(field);
+    if (valid === false || fieldErrors[field]) return `${base} !border-red-400 focus:!border-red-400 focus:!shadow-red-500/20`;
+    if (valid === true) return `${base} !border-green-400/50 focus:!border-green-400`;
+    return base;
+  };
+
+  const FieldStatus = ({ field }) => {
+    const valid = isFieldValid(field);
+    const err = fieldErrors[field];
+    if (err) return (
+      <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mt-1 text-xs text-red-400 flex items-center gap-1">
+        <FiAlertCircle size={12} /> {err}
+      </motion.p>
+    );
+    if (valid) return (
+      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1 text-xs text-green-400 flex items-center gap-1">
+        <FiCheck size={12} /> Looks good!
+      </motion.p>
+    );
+    return null;
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
@@ -104,9 +192,10 @@ export default function SignUpPage() {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center"
+              className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2"
             >
-              {error}
+              <FiAlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </motion.div>
           )}
 
@@ -115,16 +204,34 @@ export default function SignUpPage() {
               <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-text-muted' : 'text-gray-600'}`}>Username</label>
               <div className="relative">
                 <FiUser className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${isDark ? 'text-text-muted' : 'text-gray-400'}`} size={18} />
-                <input type="text" value={form.username} onChange={update('username')} className={inputClass} placeholder="Choose a username" />
+                <input
+                  type="text"
+                  value={form.username}
+                  onChange={update('username')}
+                  onBlur={() => validateField('username')}
+                  className={inputClass('username')}
+                  placeholder="Choose a username (min 3 characters)"
+                />
               </div>
+              <FieldStatus field="username" />
             </div>
+
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-text-muted' : 'text-gray-600'}`}>Email</label>
               <div className="relative">
                 <FiMail className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${isDark ? 'text-text-muted' : 'text-gray-400'}`} size={18} />
-                <input type="email" value={form.email} onChange={update('email')} className={inputClass} placeholder="your@email.com" />
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={update('email')}
+                  onBlur={() => validateField('email')}
+                  className={inputClass('email')}
+                  placeholder="your@email.com"
+                />
               </div>
+              <FieldStatus field="email" />
             </div>
+
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-text-muted' : 'text-gray-600'}`}>Password</label>
               <div className="relative">
@@ -133,7 +240,10 @@ export default function SignUpPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={update('password')}
-                  className="w-full pl-11 pr-11 py-3 rounded-xl text-sm transition-all"
+                  onBlur={() => validateField('password')}
+                  className={`w-full pl-11 pr-11 py-3 rounded-xl text-sm transition-all ${
+                    fieldErrors.password ? '!border-red-400' : isFieldValid('password') ? '!border-green-400/50' : ''
+                  }`}
                   placeholder="At least 6 characters"
                 />
                 <button
@@ -144,7 +254,9 @@ export default function SignUpPage() {
                   {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                 </button>
               </div>
+              <FieldStatus field="password" />
             </div>
+
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-text-muted' : 'text-gray-600'}`}>Confirm Password</label>
               <div className="relative">
@@ -153,10 +265,12 @@ export default function SignUpPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={form.confirmPassword}
                   onChange={update('confirmPassword')}
-                  className={inputClass}
+                  onBlur={() => validateField('confirmPassword')}
+                  className={inputClass('confirmPassword')}
                   placeholder="Re-enter your password"
                 />
               </div>
+              <FieldStatus field="confirmPassword" />
             </div>
 
             <motion.button

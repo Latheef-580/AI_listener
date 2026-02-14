@@ -16,8 +16,20 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Process user message, detect emotion, return empathetic AI response."""
-    ai_result = generate_response(data.message)
+    # Fetch recent history for context
+    history_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == current_user.id)
+        .order_by(desc(ChatMessage.created_at))
+        .limit(10)
+    )
+    history_msgs = history_result.scalars().all()
+    history = [
+        {"content": m.content, "is_ai_response": m.is_ai_response}
+        for m in reversed(history_msgs)
+    ]
+
+    ai_result = generate_response(data.message, history)
 
     # Save user message
     user_msg = ChatMessage(
