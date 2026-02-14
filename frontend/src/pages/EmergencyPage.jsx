@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { FiArrowLeft, FiPhone, FiExternalLink, FiAlertTriangle, FiHeart } from 'react-icons/fi';
+import { FiAlertCircle, FiPhone, FiGlobe, FiExternalLink, FiAlertTriangle, FiHeart } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
 import { extrasAPI } from '../services/api';
 
@@ -11,20 +10,23 @@ export default function EmergencyPage() {
   const [resources, setResources] = useState([]);
 
   useEffect(() => {
-    extrasAPI.emergencyResources().then((res) => setResources(res.data)).catch(() => {});
+    extrasAPI.emergencyResources()
+      .then((res) => setResources(res.data))
+      .catch((e) => { console.error(e); });
   }, []);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-3xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/dashboard" className={`p-2 rounded-xl glass no-underline hover:scale-105 transition-all ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
-            <FiArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Emergency Support</h1>
-            <p className={`text-sm ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>You are not alone. Help is available.</p>
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-4">
+            <FiAlertCircle size={32} />
           </div>
+          <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Emergency Support</h1>
+          <p className={`max-w-md mx-auto ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
+            If you are in immediate danger, please call emergency services immediately. You are not alone.
+          </p>
         </div>
 
         {/* Important notice */}

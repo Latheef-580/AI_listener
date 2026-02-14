@@ -107,3 +107,42 @@ async def emotion_summary(
     )
     rows = result.all()
     return {row[0]: row[1] for row in rows}
+
+
+@router.get("/{user_id}")
+async def get_public_profile(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        return None  # Or raise 404
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "avatar_url": user.avatar_url,
+        "bio": user.bio,
+        "current_mood": user.current_mood,
+        "is_online": user.is_online,
+        "created_at": str(user.created_at),
+    }
+
+
+@router.get("/{user_id}/emotions/summary")
+async def public_emotion_summary(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return emotion frequency counts for another user."""
+    result = await db.execute(
+        select(EmotionLog.emotion, func.count(EmotionLog.id).label("count"))
+        .where(EmotionLog.user_id == user_id)
+        .group_by(EmotionLog.emotion)
+    )
+    rows = result.all()
+    return {row[0]: row[1] for row in rows}
