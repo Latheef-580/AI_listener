@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiSend, FiMic, FiMicOff, FiVolume2, FiSun, FiMoon,
-  FiLogOut, FiUser, FiUsers, FiHeart, FiActivity, FiAlertCircle,
-  FiChevronDown, FiMenu, FiX
+  FiSend, FiMic, FiMicOff, FiVolume2, FiHeart, FiChevronDown
 } from 'react-icons/fi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { chatAPI, extrasAPI, profileAPI } from '../services/api';
@@ -32,26 +30,22 @@ const EMOTION_EMOJI = {
 };
 
 export default function Dashboard() {
-  const { user, logout, updateUser } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [quote, setQuote] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [voicePref, setVoicePref] = useState(user?.voice_preference || 'female-calm');
 
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // Load chat history and daily quote on mount
+  // Load chat history on mount
   useEffect(() => {
     loadHistory();
-    loadQuote();
   }, []);
 
   // Auto-scroll to bottom
@@ -70,13 +64,6 @@ export default function Dashboard() {
         time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       })));
     } catch (e) { /* first time user, no history */ }
-  };
-
-  const loadQuote = async () => {
-    try {
-      const res = await extrasAPI.quote();
-      setQuote(res.data);
-    } catch (e) { /* ignore */ }
   };
 
   const sendMessage = async () => {
@@ -178,251 +165,165 @@ export default function Dashboard() {
     window.speechSynthesis.speak(utterance);
   }, [voicePref]);
 
-  const handleLogout = () => { logout(); navigate('/'); };
-
   return (
-    <div className="h-screen flex overflow-hidden">
-      {/* Sidebar */}
-      <AnimatePresence>
-        {(sidebarOpen || window.innerWidth >= 768) && (
-          <motion.aside
-            initial={{ x: -280 }}
-            animate={{ x: 0 }}
-            exit={{ x: -280 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className={`fixed md:relative z-40 w-64 h-full flex flex-col p-4 border-r ${
-              isDark ? 'bg-surface-card border-white/5' : 'bg-white border-gray-200'
-            }`}
-          >
-            {/* Logo */}
-            <div className="flex items-center gap-2 mb-8 px-2">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-500 to-calm-400 flex items-center justify-center">
-                <FiHeart className="text-white" size={16} />
-              </div>
-              <span className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Listener</span>
-              <button onClick={() => setSidebarOpen(false)} className="md:hidden ml-auto bg-transparent border-none cursor-pointer text-text-muted">
-                <FiX size={20} />
-              </button>
-            </div>
-
-            {/* Daily quote */}
-            {quote && (
-              <div className={`p-3 rounded-xl mb-6 text-xs leading-relaxed ${isDark ? 'bg-primary-500/10 text-primary-300' : 'bg-primary-50 text-primary-700'}`}>
-                <p className="italic">"{quote.quote}"</p>
-                <p className="mt-1 font-medium text-right">— {quote.author}</p>
-              </div>
-            )}
-
-            {/* Nav links */}
-            <nav className="flex-1 space-y-1">
-              {[
-                { icon: <FiActivity size={18} />, label: 'Dashboard', path: '/dashboard', active: true },
-                { icon: <FiUsers size={18} />, label: 'Connections', path: '/connections' },
-                { icon: <FiUser size={18} />, label: 'Profile', path: '/profile' },
-                { icon: <FiAlertCircle size={18} />, label: 'Emergency Help', path: '/emergency' },
-              ].map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium no-underline transition-all ${
-                    item.active
-                      ? isDark ? 'bg-primary-500/15 text-primary-300' : 'bg-primary-50 text-primary-600'
-                      : isDark ? 'text-text-muted hover:bg-surface-hover hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-
-            {/* Theme toggle & logout */}
-            <div className="space-y-2 pt-4 border-t border-white/5">
-              <button onClick={toggleTheme} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full bg-transparent border-none cursor-pointer transition-all ${isDark ? 'text-text-muted hover:bg-surface-hover hover:text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-                {isDark ? <FiSun size={18} /> : <FiMoon size={18} />}
-                {isDark ? 'Light Mode' : 'Dark Mode'}
-              </button>
-              <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full bg-transparent border-none cursor-pointer text-red-400 hover:bg-red-500/10 transition-all">
-                <FiLogOut size={18} />
-                Sign Out
-              </button>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col h-full">
-        {/* Top bar */}
-        <header className={`flex items-center gap-4 px-4 py-3 border-b ${isDark ? 'bg-surface-card/50 border-white/5' : 'bg-white/80 border-gray-200'} glass`}>
-          <button onClick={() => setSidebarOpen(true)} className="md:hidden bg-transparent border-none cursor-pointer text-text-muted">
-            <FiMenu size={22} />
-          </button>
-          <div className="flex-1">
-            <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Hey {user?.display_name || user?.username || 'there'} 👋
-            </h2>
-            <p className={`text-xs ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
-              Express yourself freely. I'm here to listen.
-            </p>
-          </div>
-
-          {/* Voice preference selector */}
-          <div className="relative">
-            <select
-              value={voicePref}
-              onChange={(e) => {
-                setVoicePref(e.target.value);
-                profileAPI.update({ voice_preference: e.target.value });
-              }}
-              className={`appearance-none px-3 py-1.5 pr-8 rounded-lg text-xs font-medium cursor-pointer ${
-                isDark ? 'bg-surface-hover text-text-dark border-white/10' : 'bg-gray-100 text-gray-700 border-gray-200'
-              } border`}
-            >
-              <option value="female-calm">🎧 Female (Calm)</option>
-              <option value="male-calm">🎧 Male (Calm)</option>
-              <option value="young-adult">🎧 Young Adult</option>
-              <option value="mature">🎧 Mature</option>
-            </select>
-            <FiChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted" />
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-          {messages.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center h-full text-center"
-            >
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500/20 to-calm-500/20 flex items-center justify-center mb-4 animate-float">
-                <FiHeart size={32} className="text-primary-400" />
-              </div>
-              <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                How are you feeling?
-              </h3>
-              <p className={`max-w-md ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
-                Type or speak how you're feeling. I'll listen with empathy and respond with care. Everything you share here is safe.
-              </p>
-            </motion.div>
-          )}
-
-          {messages.map((msg, i) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${msg.isAI ? 'justify-start' : 'justify-end'}`}
-            >
-              <div className={`max-w-lg ${msg.isAI ? '' : ''}`}>
-                <div
-                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.isAI
-                      ? isDark ? 'bg-surface-card text-text-dark border border-white/5' : 'bg-white text-gray-800 shadow-sm border border-gray-100'
-                      : 'bg-gradient-to-r from-primary-500 to-calm-500 text-white'
-                  }`}
-                  style={msg.isAI ? { borderLeftColor: EMOTION_COLORS[msg.emotion] || '#adb5bd', borderLeftWidth: '3px' } : {}}
-                >
-                  {msg.isAI && msg.emotion && (
-                    <span className="text-xs font-medium opacity-70 block mb-1">
-                      {EMOTION_EMOJI[msg.emotion]} Sensing: {msg.emotion}
-                    </span>
-                  )}
-                  <p className="m-0 whitespace-pre-wrap">{msg.text}</p>
-                  {msg.copingTip && (
-                    <div className={`mt-3 pt-2 border-t text-xs ${isDark ? 'border-white/10 text-primary-300' : 'border-gray-200 text-primary-600'}`}>
-                      💡 <span className="font-medium">Tip:</span> {msg.copingTip}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-1 px-1">
-                  <span className={`text-xs ${isDark ? 'text-text-muted' : 'text-gray-400'}`}>{msg.time}</span>
-                  {msg.isAI && (
-                    <button
-                      onClick={() => speakText(msg.text)}
-                      className={`bg-transparent border-none cursor-pointer p-1 rounded-full transition-all hover:bg-primary-500/20 ${isDark ? 'text-text-muted hover:text-primary-300' : 'text-gray-400 hover:text-primary-500'}`}
-                      title="Listen to response"
-                    >
-                      <FiVolume2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {sending && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex justify-start"
-            >
-              <div className={`px-4 py-3 rounded-2xl ${isDark ? 'bg-surface-card' : 'bg-white shadow-sm'}`}>
-                <div className="flex gap-1.5">
-                  {[0, 1, 2].map((i) => (
-                    <motion.div
-                      key={i}
-                      className="w-2 h-2 rounded-full bg-primary-400"
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          <div ref={chatEndRef} />
+    <div className="flex-1 flex flex-col h-full">
+      {/* Top bar */}
+      <header className={`flex items-center gap-4 px-4 py-3 border-b ${isDark ? 'bg-surface-card/50 border-white/5' : 'bg-white/80 border-gray-200'} glass`}>
+        <div className="flex-1">
+          <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Hey {user?.display_name || user?.username || 'there'} 👋
+          </h2>
+          <p className={`text-xs ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
+            Express yourself freely. I'm here to listen.
+          </p>
         </div>
 
-        {/* Input area */}
-        <div className={`px-4 py-3 border-t ${isDark ? 'bg-surface-card/50 border-white/5' : 'bg-white/80 border-gray-200'}`}>
-          <div className="flex items-end gap-2 max-w-4xl mx-auto">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleRecording}
-              className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border-none cursor-pointer transition-all ${
-                isRecording
-                  ? 'bg-red-500 text-white animate-pulse-glow'
-                  : isDark ? 'bg-surface-hover text-text-muted hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-700'
-              }`}
-              title={isRecording ? 'Stop recording' : 'Start voice input'}
-            >
-              {isRecording ? <FiMicOff size={18} /> : <FiMic size={18} />}
-            </motion.button>
+        {/* Voice preference selector */}
+        <div className="relative">
+          <select
+            value={voicePref}
+            onChange={(e) => {
+              setVoicePref(e.target.value);
+              profileAPI.update({ voice_preference: e.target.value });
+            }}
+            className={`appearance-none px-3 py-1.5 pr-8 rounded-lg text-xs font-medium cursor-pointer ${isDark ? 'bg-surface-hover text-text-dark border-white/10' : 'bg-gray-100 text-gray-700 border-gray-200'
+              } border`}
+          >
+            <option value="female-calm">🎧 Female (Calm)</option>
+            <option value="male-calm">🎧 Male (Calm)</option>
+            <option value="young-adult">🎧 Young Adult</option>
+            <option value="mature">🎧 Mature</option>
+          </select>
+          <FiChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted" />
+        </div>
+      </header>
 
-            <div className="flex-1 relative">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={isRecording ? 'Listening...' : 'Share how you\'re feeling...'}
-                rows={1}
-                className={`w-full px-4 py-2.5 rounded-xl text-sm resize-none max-h-32 ${
-                  isDark ? 'bg-surface-hover text-text-dark placeholder-text-muted' : 'bg-gray-100 text-gray-800 placeholder-gray-400'
-                } border-none focus:ring-2 focus:ring-primary-500/30`}
-                style={{ minHeight: '42px' }}
-              />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        {messages.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center h-full text-center"
+          >
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500/20 to-calm-500/20 flex items-center justify-center mb-4 animate-float">
+              <FiHeart size={32} className="text-primary-400" />
             </div>
+            <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              How are you feeling?
+            </h3>
+            <p className={`max-w-md ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
+              Type or speak how you're feeling. I'll listen with empathy and respond with care. Everything you share here is safe.
+            </p>
+          </motion.div>
+        )}
 
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={sendMessage}
-              disabled={!input.trim() || sending}
-              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border-none cursor-pointer bg-gradient-to-r from-primary-500 to-calm-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-primary-500/25"
-            >
-              <FiSend size={18} />
-            </motion.button>
+        {messages.map((msg, i) => (
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`flex ${msg.isAI ? 'justify-start' : 'justify-end'}`}
+          >
+            <div className={`max-w-lg ${msg.isAI ? '' : ''}`}>
+              <div
+                className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${msg.isAI
+                    ? isDark ? 'bg-surface-card text-text-dark border border-white/5' : 'bg-white text-gray-800 shadow-sm border border-gray-100'
+                    : 'bg-gradient-to-r from-primary-500 to-calm-500 text-white'
+                  }`}
+                style={msg.isAI ? { borderLeftColor: EMOTION_COLORS[msg.emotion] || '#adb5bd', borderLeftWidth: '3px' } : {}}
+              >
+                {msg.isAI && msg.emotion && (
+                  <span className="text-xs font-medium opacity-70 block mb-1">
+                    {EMOTION_EMOJI[msg.emotion]} Sensing: {msg.emotion}
+                  </span>
+                )}
+                <p className="m-0 whitespace-pre-wrap">{msg.text}</p>
+                {msg.copingTip && (
+                  <div className={`mt-3 pt-2 border-t text-xs ${isDark ? 'border-white/10 text-primary-300' : 'border-gray-200 text-primary-600'}`}>
+                    💡 <span className="font-medium">Tip:</span> {msg.copingTip}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-1 px-1">
+                <span className={`text-xs ${isDark ? 'text-text-muted' : 'text-gray-400'}`}>{msg.time}</span>
+                {msg.isAI && (
+                  <button
+                    onClick={() => speakText(msg.text)}
+                    className={`bg-transparent border-none cursor-pointer p-1 rounded-full transition-all hover:bg-primary-500/20 ${isDark ? 'text-text-muted hover:text-primary-300' : 'text-gray-400 hover:text-primary-500'}`}
+                    title="Listen to response"
+                  >
+                    <FiVolume2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+
+        {sending && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-start"
+          >
+            <div className={`px-4 py-3 rounded-2xl ${isDark ? 'bg-surface-card' : 'bg-white shadow-sm'}`}>
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-2 h-2 rounded-full bg-primary-400"
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Input area */}
+      <div className={`px-4 py-3 border-t ${isDark ? 'bg-surface-card/50 border-white/5' : 'bg-white/80 border-gray-200'}`}>
+        <div className="flex items-end gap-2 max-w-4xl mx-auto">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleRecording}
+            className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border-none cursor-pointer transition-all ${isRecording
+                ? 'bg-red-500 text-white animate-pulse-glow'
+                : isDark ? 'bg-surface-hover text-text-muted hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-700'
+              }`}
+            title={isRecording ? 'Stop recording' : 'Start voice input'}
+          >
+            {isRecording ? <FiMicOff size={18} /> : <FiMic size={18} />}
+          </motion.button>
+
+          <div className="flex-1 relative">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isRecording ? 'Listening...' : 'Share how you\'re feeling...'}
+              rows={1}
+              className={`w-full px-4 py-2.5 rounded-xl text-sm resize-none max-h-32 ${isDark ? 'bg-surface-hover text-text-dark placeholder-text-muted' : 'bg-gray-100 text-gray-800 placeholder-gray-400'
+                } border-none focus:ring-2 focus:ring-primary-500/30`}
+              style={{ minHeight: '42px' }}
+            />
           </div>
+
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={sendMessage}
+            disabled={!input.trim() || sending}
+            className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border-none cursor-pointer bg-gradient-to-r from-primary-500 to-calm-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-primary-500/25"
+          >
+            <FiSend size={18} />
+          </motion.button>
         </div>
       </div>
     </div>

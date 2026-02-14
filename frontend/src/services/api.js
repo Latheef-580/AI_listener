@@ -46,10 +46,12 @@ export const chatAPI = {
 // --- Profile ---
 export const profileAPI = {
   get: () => api.get('/profile/me'),
+  getUser: (userId) => api.get(`/profile/${userId}`),
   update: (data) => api.put('/profile/me', data),
   getEmotions: (limit = 30) => api.get(`/profile/emotions?limit=${limit}`),
   logEmotion: (data) => api.post('/profile/emotions', data),
   emotionSummary: () => api.get('/profile/emotions/summary'),
+  userEmotionSummary: (userId) => api.get(`/profile/${userId}/emotions/summary`),
 };
 
 // --- Connections ---
@@ -61,6 +63,7 @@ export const connectAPI = {
   pending: () => api.get('/connect/pending'),
   sendMessage: (data) => api.post('/connect/messages', data),
   getMessages: (userId, limit = 50) => api.get(`/connect/messages/${userId}?limit=${limit}`),
+  clearMessages: (userId) => api.delete(`/connect/messages/${userId}`),
 };
 
 // --- Extras ---

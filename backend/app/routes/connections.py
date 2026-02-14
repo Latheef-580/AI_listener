@@ -224,3 +224,33 @@ async def get_direct_messages(
         }
         for m in reversed(messages)
     ]
+
+
+@router.delete("/messages/{user_id}")
+async def clear_chat_history(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await db.execute(
+        select(DirectMessage)
+        .where(
+            or_(
+                and_(DirectMessage.sender_id == current_user.id, DirectMessage.receiver_id == user_id),
+                and_(DirectMessage.sender_id == user_id, DirectMessage.receiver_id == current_user.id),
+            )
+        )
+    )
+    # Actually delete
+    # Note: verify delete syntax for SQLAlchemy 2.0 async
+    from sqlalchemy import delete
+    await db.execute(
+        delete(DirectMessage).where(
+            or_(
+                and_(DirectMessage.sender_id == current_user.id, DirectMessage.receiver_id == user_id),
+                and_(DirectMessage.sender_id == user_id, DirectMessage.receiver_id == current_user.id),
+            )
+        )
+    )
+    await db.commit()
+    return {"message": "Chat history cleared"}

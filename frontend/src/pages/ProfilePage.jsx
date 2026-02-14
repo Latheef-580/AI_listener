@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  FiUser, FiSave, FiArrowLeft, FiMail, FiEdit3, FiSun, FiMoon
+  FiUser, FiMail, FiEdit2, FiCheck, FiPieChart, FiActivity, FiSun, FiMoon
 } from 'react-icons/fi';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useAuth } from '../context/AuthContext';
@@ -44,7 +44,9 @@ export default function ProfilePage() {
         voice_preference: res.data.voice_preference || 'female-calm',
         theme_preference: res.data.theme_preference || 'dark',
       });
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const loadEmotions = async () => {
@@ -60,7 +62,9 @@ export default function ProfilePage() {
         }))
       );
       setEmotionLogs(logsRes.data);
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSave = async () => {
@@ -70,7 +74,9 @@ export default function ProfilePage() {
       updateUser(form);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
     setSaving(false);
   };
 
@@ -80,14 +86,9 @@ export default function ProfilePage() {
     <div className="min-h-screen p-4 md:p-8 max-w-4xl mx-auto">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/dashboard" className={`p-2 rounded-xl glass no-underline transition-all hover:scale-105 ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>
-            <FiArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Profile</h1>
-            <p className={`text-sm ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>Manage your settings and view your emotional journey</p>
-          </div>
+        <div className="mb-8">
+          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>My Profile</h1>
+          <p className={`text-sm ${isDark ? 'text-text-muted' : 'text-gray-500'}`}>Manage your account and view your emotional journey</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -149,7 +150,7 @@ export default function ProfilePage() {
           {/* Mood tracking chart */}
           <div className="glass rounded-2xl p-6">
             <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              <FiEdit3 size={18} className="inline mr-2" />Mood Journey
+              <FiEdit2 size={18} className="inline mr-2" />Mood Journey
             </h3>
 
             {emotionData.length > 0 ? (
